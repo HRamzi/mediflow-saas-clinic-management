@@ -1,5 +1,3 @@
-# mediflow-saas-clinic-management
-
 # MediFlow — Clinic Management System
 
 ## About
