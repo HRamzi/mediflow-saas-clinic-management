@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Scopes\TenantScope;
 
 /**
@@ -66,5 +67,14 @@ class Clinic extends Model
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
+    }
+
+    /**
+     * Get all staff users belonging to this clinic.
+     * A clinic can have multiple staff users.
+     */
+    public function staffUsers(): HasMany
+    {
+        return $this->hasMany(StaffUser::class);
     }
 }
