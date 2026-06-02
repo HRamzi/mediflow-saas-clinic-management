@@ -77,4 +77,9 @@ class StaffUserPolicy
             'owner',
         ]);
     }
+
+    public function unlock(StaffUser $user): bool
+    {
+        return $user->role === 'owner';
+    }
 }

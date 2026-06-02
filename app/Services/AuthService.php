@@ -79,7 +79,11 @@ class AuthService
             abort(401, __('auth.account_inactive'));
         }
 
-        $token = $user->createToken('staff-token')->plainTextToken;
+        $token = $user->createToken(
+            'staff-token',
+            ['*'],
+            now()->addMinutes(config('sanctum.expiration'))
+        )->plainTextToken;
 
         // Successful login attempt
         $this->loginAttemptService->logSuccess([

@@ -26,4 +26,6 @@ Route::prefix('staff')->group(function () {
      * user's tenant.
      */
     Route::get('/users', [StaffUserController::class, 'index']);
+
+    Route::put('/users/{id}/unlock', [StaffUserController::class, 'unlock']);
 });
