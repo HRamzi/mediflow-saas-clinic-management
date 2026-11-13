@@ -1,0 +1,512 @@
+enum gender_type {
+  male
+  female
+}
+
+enum tenant_status {
+  active
+  suspended
+  cancelled
+}
+
+enum clinic_status {
+  active
+  inactive
+}
+
+enum role_type {
+  owner
+  head_receptionist
+  receptionist
+  doctor
+  nurse
+  pharmacist
+  pharmacy_assistant
+  accountant
+  head_accountant
+  lab_technician
+  radiology_technician
+}
+
+enum severity_type {
+  mild
+  moderate
+  severe
+  anaphylactic
+}
+
+enum appointment_status {
+  scheduled
+  confirmed
+  arrived
+  in_consultation
+  completed
+  cancelled
+  no_show
+}
+
+enum booking_type {
+  online
+  receptionist
+  walk_in
+}
+
+enum invoice_payment_status {
+  pending
+  paid
+  partially_paid
+  voided
+}
+
+enum payment_method_type {
+  cash
+  card
+}
+
+enum audit_log_type {
+  billing_action
+  patient_access
+  login_event
+  admin_change
+  discount_request
+  access_revocation
+}
+
+enum lab_result_type {
+  laboratory
+  radiology
+}
+
+enum day_of_week_type {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+enum insurance_claim_status {
+  pending
+  submitted
+  approved
+  rejected
+  resubmitted
+}
+
+Table tenants {
+  id uuid [pk]
+  name varchar(100) [not null]
+  owner_name varchar(100) [not null]
+  email varchar(255) [not null, unique]
+  phone varchar(20) [not null]
+  country varchar(100) [not null]
+  status tenant_status [not null, default: 'active']
+  subscription_plan varchar(50) [not null]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table clinics {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  name varchar(100) [not null]
+  city varchar(100) [not null]
+  address text [not null]
+  phone_number varchar(20) [not null]
+  email varchar(255)
+  operating_hours_start time [not null]
+  operating_hours_end time [not null]
+  min_receptionists_per_shift integer [not null]
+  min_nurses_per_shift integer [not null]
+  min_doctors_per_shift integer [not null]
+  status clinic_status [not null, default: 'active']
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    tenant_id
+    status
+  }
+}
+
+Table staff_users {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  phone_number varchar(20) [not null]
+  email varchar(255) [not null, unique]
+  password_hash varchar(255) [not null]
+  role role_type [not null]
+  home_clinic_id uuid [not null, ref: > clinics.id]
+  specialization varchar(255)
+  is_active bool [not null, default: true]
+  revoked_at datetime
+  revoked_by_user_id uuid [ref: > staff_users.id]
+  created_at datetime [not null]
+  last_login_at datetime
+
+  indexes {
+    tenant_id
+    last_name
+    phone_number
+    role
+    home_clinic_id
+    specialization
+    is_active
+    created_at
+    last_login_at
+  }
+}
+
+Table patients {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  registration_clinic_id uuid [not null, ref: > clinics.id]
+  national_id varchar(20) [not null]
+  first_name varchar(100) [not null]
+  last_name varchar(100) [not null]
+  date_of_birth date [not null]
+  gender gender_type [not null]
+  phone_number varchar(20) [not null]
+  email varchar(255)
+  address text [not null]
+  is_chronic bool [not null, default: false]
+  chronic_categories json
+  portal_access_enabled bool [not null, default: false]
+  registration_date datetime [not null]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    tenant_id
+    registration_clinic_id
+    national_id
+    phone_number
+    last_name
+    is_chronic
+
+    (tenant_id, national_id) [unique]
+  }
+}
+
+Table allergies {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  patient_id uuid [not null, ref: > patients.id]
+  allergen_name varchar(255) [not null]
+  severity severity_type [not null]
+  reaction_description text
+  recorded_by_doctor_id uuid [not null, ref: > staff_users.id]
+  recorded_at datetime [not null]
+  is_active bool [not null, default: true]
+
+  indexes {
+    tenant_id
+    patient_id
+    allergen_name
+    severity
+    recorded_by_doctor_id
+    recorded_at
+    is_active
+  }
+}
+
+Table appointments {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  patient_id uuid [not null, ref: > patients.id]
+  doctor_id uuid [not null, ref: > staff_users.id]
+  clinic_id uuid [not null, ref: > clinics.id]
+  appointment_date date [not null]
+  start_time time [not null]
+  end_time time [not null]
+  status appointment_status [not null, default: 'scheduled']
+  booking_type booking_type [not null]
+  booked_by_user_id uuid [ref: > staff_users.id]
+  cancellation_reason text
+  reminder_24h_sent bool [not null, default: false]
+  reminder_2h_sent bool [not null, default: false]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    tenant_id
+    patient_id
+    doctor_id
+    clinic_id
+    appointment_date
+    status
+    booking_type
+    booked_by_user_id
+    reminder_24h_sent
+    reminder_2h_sent
+    created_at
+    updated_at
+  }
+}
+
+Table consultations {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  patient_id uuid [not null, ref: > patients.id]
+  doctor_id uuid [not null, ref: > staff_users.id]
+  clinic_id uuid [not null, ref: > clinics.id]
+  appointment_id uuid [ref: - appointments.id]
+  consultation_date date [not null]
+  start_time datetime [not null]
+  end_time datetime
+  chief_complaint text
+  diagnosis text
+  consultation_notes text
+  services_confirmed_at datetime
+  services_confirmed_by uuid [ref: > staff_users.id]
+  triage_bp_systolic integer
+  triage_bp_diastolic integer
+  triage_temperature decimal(4,1)
+  triage_weight decimal(5,1)
+  triage_heart_rate integer
+  triage_recorded_by uuid [ref: > staff_users.id]
+  created_at datetime [not null]
+
+  indexes {
+    tenant_id
+    patient_id
+    doctor_id
+    clinic_id
+    appointment_id
+    consultation_date
+    services_confirmed_at
+    services_confirmed_by
+    triage_recorded_by
+    created_at
+  }
+}
+
+Table prescriptions {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  consultation_id uuid [not null, ref: > consultations.id]
+  patient_id uuid [not null, ref: > patients.id]
+  doctor_id uuid [not null, ref: > staff_users.id]
+  medication_name varchar(255) [not null]
+  dosage varchar(100) [not null]
+  frequency varchar(100) [not null]
+  duration_days integer [not null]
+  instructions text
+  dispensed bool [not null, default: false]
+  dispensed_by uuid [ref: > staff_users.id]
+  dispensed_at datetime
+  created_at datetime [not null]
+
+  indexes {
+    tenant_id
+    consultation_id
+    patient_id
+    doctor_id
+    medication_name
+    dispensed
+    dispensed_by
+    created_at
+  }
+}
+
+Table invoices {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  consultation_id uuid [not null, unique, ref: - consultations.id]
+  patient_id uuid [not null, ref: > patients.id]
+  clinic_id uuid [not null, ref: > clinics.id]
+  insurance_claim_id uuid
+  generated_at datetime [not null]
+  subtotal decimal(10,2) [not null]
+  discount_amount decimal(10,2) [not null, default: 0]
+  discount_approved_by uuid [ref: > staff_users.id]
+  total_amount decimal(10,2) [not null]
+  payment_status invoice_payment_status [not null, default: 'pending']
+  payment_method payment_method_type
+  paid_at datetime
+  paid_by_receptionist_id uuid [ref: > staff_users.id]
+  is_locked bool [not null, default: false]
+  unlock_authorized_by uuid [ref: > staff_users.id]
+
+  indexes {
+    tenant_id
+    consultation_id
+    patient_id
+    clinic_id
+    insurance_claim_id
+    payment_status
+    payment_method
+    generated_at
+    paid_at
+    is_locked
+  }
+}
+
+Table consultation_services {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  consultation_id uuid [not null, ref: > consultations.id]
+  invoice_id uuid [not null, ref: > invoices.id]
+  service_name varchar(255) [not null]
+  service_category varchar(100)
+  quantity integer [not null, default: 1]
+  unit_price decimal(10,2) [not null]
+  total_price decimal(10,2) [not null]
+  performed_by uuid [ref: > staff_users.id]
+  created_at datetime [not null]
+
+  indexes {
+    tenant_id
+    consultation_id
+    invoice_id
+    service_name
+    service_category
+    performed_by
+    created_at
+  }
+}
+
+Table audit_logs {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  user_id uuid [not null, ref: > staff_users.id]
+  clinic_id uuid [ref: > clinics.id]
+  log_type audit_log_type [not null]
+  entity_type varchar(100) [not null]
+  entity_id uuid [not null]
+  action varchar(255) [not null]
+  original_value json
+  new_value json
+  ip_address varchar(45)
+  device_info varchar(255)
+  created_at datetime [not null]
+
+  indexes {
+    tenant_id
+    user_id
+    clinic_id
+    log_type
+    entity_type
+    entity_id
+    action
+    created_at
+  }
+}
+
+Table pharmacy_stocks {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  clinic_id uuid [not null, ref: > clinics.id]
+  medication_name varchar(255) [not null]
+  medication_category varchar(100)
+  unit varchar(50) [not null]
+  current_quantity integer [not null]
+  low_stock_threshold integer [not null]
+  expiry_date date [not null]
+  is_expired bool [not null, default: false]
+  supplier_name varchar(255)
+  last_restocked_at datetime
+  updated_at datetime [not null]
+
+  indexes {
+    tenant_id
+    clinic_id
+    medication_name
+    medication_category
+    expiry_date
+    is_expired
+    current_quantity
+    low_stock_threshold
+    updated_at
+
+    (tenant_id, clinic_id, medication_name, expiry_date) [unique]
+  }
+}
+
+Table lab_results {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  patient_id uuid [not null, ref: > patients.id]
+  consultation_id uuid [ref: > consultations.id]
+  result_type lab_result_type [not null]
+  test_name varchar(255) [not null]
+  uploaded_by uuid [not null, ref: > staff_users.id]
+  uploaded_at datetime [not null]
+  result_file_url text [not null]
+  reviewed_by uuid [ref: > staff_users.id]
+  reviewed_at datetime
+  doctor_note text
+  released_to_patient bool [not null, default: false]
+  released_at datetime
+  alert_sent_to_owner bool [not null, default: false]
+
+  indexes {
+    tenant_id
+    patient_id
+    consultation_id
+    result_type
+    uploaded_by
+    reviewed_by
+    released_to_patient
+    uploaded_at
+    reviewed_at
+  }
+}
+
+Table doctor_schedules {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  doctor_id uuid [not null, ref: > staff_users.id]
+  clinic_id uuid [not null, ref: > clinics.id]
+  day_of_week day_of_week_type [not null]
+  start_time time [not null]
+  end_time time [not null]
+  slot_duration_minutes integer [not null]
+  effective_from date [not null]
+  effective_until date
+  is_temporary bool [not null, default: false]
+  created_at datetime [not null]
+
+  indexes {
+    tenant_id
+    doctor_id
+    clinic_id
+    day_of_week
+    effective_from
+    effective_until
+    is_temporary
+
+    (tenant_id, doctor_id, clinic_id, day_of_week, start_time, effective_from) [unique]
+  }
+}
+
+Table insurance_claims {
+  id uuid [pk]
+  tenant_id uuid [not null, ref: > tenants.id]
+  invoice_id uuid [not null, ref: - invoices.id]
+  patient_id uuid [not null, ref: > patients.id]
+  insurance_provider varchar(255) [not null]
+  claim_amount decimal(10,2) [not null]
+  status insurance_claim_status [not null, default: 'pending']
+  submitted_at datetime
+  decision_at datetime
+  rejection_reason text
+  document_url text
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    tenant_id
+    invoice_id
+    patient_id
+    insurance_provider
+    status
+    submitted_at
+    decision_at
+    created_at
+  }
+}

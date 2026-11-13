@@ -32,8 +32,36 @@ prescribing.
   Business logic lives in Services. Database communication lives in 
   Repositories. Controllers handle HTTP only.
 
-## Local Setup
-Setup instructions coming after MB-001.
+
+## Local Development with Docker
+
+### Start the environment
+```bash
+docker-compose up -d
+```
+
+### Run migrations
+```bash
+docker-compose exec app php artisan migrate
+```
+
+### Run seeders
+```bash
+docker-compose exec app php artisan db:seed
+```
+
+### Run tests
+```bash
+docker-compose exec app php artisan test
+```
+
+### Health check
+Visit: http://localhost/api/health
+
+### Expose staging via Ngrok
+```bash
+ngrok http 80
+```
 
 ## Branch Strategy
 - `main` — production code only. Never push directly.
@@ -45,3 +73,5 @@ Setup instructions coming after MB-001.
 - Sprint 1 — Active
 - Architecture phase — Complete
 - Database ERD — Approved
+- MB-001 — Complete
+- MB-002A — Complete
