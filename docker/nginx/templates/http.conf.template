@@ -4,6 +4,11 @@ server {
     root /var/www/html/public;
     index index.php;
 
+    # Let's Encrypt domain check (used by certbot on servers)
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
     # Handle all requests
     location / {
         try_files $uri $uri/ /index.php?$query_string;
